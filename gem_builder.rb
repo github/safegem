@@ -56,6 +56,11 @@ def process(repository, path)
     name = spec.name.gsub(' ', '-')
     spec.name = "#{repository.owner}-#{name}"
     Gem::Builder.new(spec).build(repository)
+    Message.create \
+      :to      => repository.owner,
+      :from    => (User / :github),
+      :subject => "[#{repository}] Gem Build Successful",
+      :body    => "Your gem has been built, it will be added to gems.github.com soon."
   rescue GemBuildError => err
     Message.create \
       :to      => repository.owner,
