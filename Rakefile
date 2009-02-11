@@ -16,12 +16,6 @@ rescue LoadError
   puts "Jeweler not available. Install it with: sudo gem install technicalpickles-jeweler -s http://gems.github.com"
 end
 
-Rake::TestTask.new do |t|
-  t.libs << 'lib'
-  t.pattern = 'test/**/*_test.rb'
-  t.verbose = false
-end
-
 Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = 'rdoc'
   rdoc.title    = 'github-gem-builder'
@@ -38,6 +32,13 @@ begin
     t.verbose = true
   end
 rescue LoadError
+end
+
+task :test do
+  # the test files must be run in isolation because they mess with security
+  Dir['test/**/*_test.rb'].each do |file|
+    sh "ruby #{file}"
+  end
 end
 
 task :default => :test
