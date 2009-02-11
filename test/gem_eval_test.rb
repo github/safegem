@@ -1,14 +1,34 @@
+require 'rubygems'
 require 'test/unit'
 require 'net/http'
 require 'cgi'
+require 'fileutils'
+require 'open4'
 
 OUTPUT = !!ENV['SERVER_OUTPUT']
-puts "gem_eval server output disabled, set SERVER_OUTPUT=1 to enable"  if ! OUTPUT
+puts "gem_eval server output disabled, set SERVER_OUTPUT=1 to enable" if ! OUTPUT
+
+def mv(a, b)
+  here = File.dirname(__FILE__)
+  FileUtils.mv(File.join(here, a), File.join(here, b))
+end
+
+# ensure git_mock is in place before running any of these tests
+mv('git', 'git_mock') rescue nil
 
 class GemEvalTest < Test::Unit::TestCase
   def setup
-    system("mv git_mock git")
-    @pid = fork { exec("PATH=.:$PATH ruby gem_eval.rb #{' > /dev/null 2>&1' unless OUTPUT}") }
+    here = File.dirname(__FILE__)
+
+    # put the mock git in place
+    mv('git_mock', 'git')
+
+    # construct the gem_eval command
+    cmd = "PATH=#{here}:$PATH ruby #{here}/../bin/gem_eval.rb"
+    cmd += " > /dev/null 2>&1" unless OUTPUT
+
+    # run gem_eval
+    @pid, _, _, _ = Open4::popen4(cmd)
 
     # wait for server to start
     Timeout::timeout(5) do
@@ -19,13 +39,14 @@ class GemEvalTest < Test::Unit::TestCase
         server_started = false
         sleep 0.1
         retry
-      end  until server_started
+      end until server_started
     end
   end
 
-  def teardown 
-    system("pkill -f 'ruby gem_eval.rb'")
-    system("mv git git_mock")
+  def teardown
+    Process.kill("SIGHUP", @pid)
+    mv('git', 'git_mock')
+    sleep(0.5) # to let sinatra unbind the socket
   end
 
   def test_access_to_untainted_locals
@@ -35,9 +56,9 @@ class GemEvalTest < Test::Unit::TestCase
   end
 
   def test_timeout
-    puts "\ntesting timeout..."
+    puts "\ntesting 15s timeout"
     begin
-      timeout(7) do
+      timeout(17) do
         s = req <<-EOS
           def forever
             loop{}
@@ -65,55 +86,55 @@ class GemEvalTest < Test::Unit::TestCase
       end
     EOS
     expected_response = <<-EOS
---- !ruby/object:Gem::Specification 
+--- !ruby/object:Gem::Specification
 name: name
-version: !ruby/object:Gem::Version 
+version: !ruby/object:Gem::Version
   version: 0.0.9
 platform: ruby
-authors: 
+authors:
 - coderrr
-autorequire: 
+autorequire:
 bindir: bin
 cert_chain: []
 
 date: 2008-10-31 00:00:00 +07:00
-default_executable: 
+default_executable:
 dependencies: []
 
 description: description
-email: 
+email:
 executables: []
 
 extensions: []
 
 extra_rdoc_files: []
 
-files: 
+files:
 - x
 has_rdoc: false
-homepage: 
-post_install_message: 
+homepage:
+post_install_message:
 rdoc_options: []
 
-require_paths: 
+require_paths:
 - lib
-required_ruby_version: !ruby/object:Gem::Requirement 
-  requirements: 
+required_ruby_version: !ruby/object:Gem::Requirement
+  requirements:
   - - ">="
-    - !ruby/object:Gem::Version 
+    - !ruby/object:Gem::Version
       version: "0"
-  version: 
-required_rubygems_version: !ruby/object:Gem::Requirement 
-  requirements: 
+  version:
+required_rubygems_version: !ruby/object:Gem::Requirement
+  requirements:
   - - ">="
-    - !ruby/object:Gem::Version 
+    - !ruby/object:Gem::Version
       version: "0"
-  version: 
+  version:
 requirements: []
 
-rubyforge_project: 
+rubyforge_project:
 rubygems_version: 1.3.0
-signing_key: 
+signing_key:
 specification_version: 2
 summary: ""
 test_files: []
@@ -139,61 +160,61 @@ test_files: []
       end
     EOS
     expected_response = <<-EOS
---- !ruby/object:Gem::Specification 
+--- !ruby/object:Gem::Specification
 name: name
-version: !ruby/object:Gem::Version 
+version: !ruby/object:Gem::Version
   version: 0.0.9
 platform: ruby
-authors: 
+authors:
 - coderrr
-autorequire: 
+autorequire:
 bindir: bin
 cert_chain: []
 
 
-default_executable: 
+default_executable:
 dependencies: []
 
 description: description
-email: 
-executables: 
+email:
+executables:
 - globdir/c.txt
 - globdir/a.rb
 - globdir/b.rb
 extensions: []
 
-extra_rdoc_files: 
+extra_rdoc_files:
 - globdir
-files: 
+files:
 - globdir/a.rb
 - globdir/b.rb
 has_rdoc: false
-homepage: 
-post_install_message: 
+homepage:
+post_install_message:
 rdoc_options: []
 
-require_paths: 
+require_paths:
 - lib
-required_ruby_version: !ruby/object:Gem::Requirement 
-  requirements: 
+required_ruby_version: !ruby/object:Gem::Requirement
+  requirements:
   - - ">="
-    - !ruby/object:Gem::Version 
+    - !ruby/object:Gem::Version
       version: "0"
-  version: 
-required_rubygems_version: !ruby/object:Gem::Requirement 
-  requirements: 
+  version:
+required_rubygems_version: !ruby/object:Gem::Requirement
+  requirements:
   - - ">="
-    - !ruby/object:Gem::Version 
+    - !ruby/object:Gem::Version
       version: "0"
-  version: 
+  version:
 requirements: []
 
-rubyforge_project: 
+rubyforge_project:
 
-signing_key: 
+signing_key:
 specification_version: 2
 summary: ""
-test_files: 
+test_files:
 - globdir/a.rb
 - globdir/b.rb
 - globdir/c.txt
@@ -227,16 +248,16 @@ test_files:
   private
 
   def clean_yaml(y)
-    y.strip.sub(/^date:.+$/,'').sub(/^rubygems_version:.+$/,'')
+    y.strip.gsub(/ *$/m, '').sub(/^date:.+$/,'').sub(/^rubygems_version:.+$/,'')
   end
-  
+
   def assert_nil_error(v)
     assert req("#{v}.abc").include?("undefined method `abc' for nil"), "#{v} was not nil"
   end
 
   def req(data)
     Net::HTTP.start 'localhost', 4567 do |h|
-      h.post('/', "data=#{CGI.escape data}&repo=gem_eval_test").body 
+      h.post('/', "data=#{CGI.escape data}&repo=gem_eval_test").body
     end
   end
 end

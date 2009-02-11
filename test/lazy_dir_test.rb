@@ -1,6 +1,8 @@
+$:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
+require 'github-gem-builder/lazy_dir'
+
 require 'test/unit'
 require 'fileutils'
-require File.dirname(__FILE__) + '/lazy_dir'
 
 class LazyDirTest < Test::Unit::TestCase
   def setup
@@ -42,7 +44,10 @@ class LazyDirTest < Test::Unit::TestCase
   end
 
   def test_lazy_glob_flags
-    assert LazyDir.glob('*/A').to_a.empty?
+    if PLATFORM !~ /darwin/
+      # this will fail on osx because of fs case insensitivity, so don't run in there
+      assert LazyDir.glob('*/A').to_a.empty?
+    end
     assert_equal ['test_glob_dir/a'], LazyDir.glob('*/A', File::FNM_CASEFOLD).to_a
   end
 
@@ -50,7 +55,6 @@ class LazyDirTest < Test::Unit::TestCase
     assert LazyDir['/etc/passwd'].to_a.empty?
     assert LazyDir['../../*'].to_a.empty?
 
-    puts "\nbig glob test... this may take a while"
     orig = OrigDir['./**/*'].map {|f| File.expand_path(f) }
     lazy = LazyDir['../**/*'].to_a.map {|f| File.expand_path(f) }
     assert_equal orig, lazy

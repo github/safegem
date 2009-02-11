@@ -1,7 +1,6 @@
 # I dont use test/unit for this because the security measures screw with it
-########
-
-require File.dirname(__FILE__)+'/security'
+$:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
+require 'github-gem-builder/security'
 
 def assert condition, message
   raise message  if ! condition

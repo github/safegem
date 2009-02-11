@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+$:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
+
 require 'rubygems'
 require 'rubygems/specification'
 require 'sinatra'
@@ -16,15 +18,15 @@ post '/' do
     tmpdir = "tmp/#{repo}"
     spec = nil
 
-    Timeout::timeout(3) do
+    Timeout::timeout(15) do
       `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
 
       pid = fork do
         begin
           r.close
 
-          require File.dirname(__FILE__)+'/security'
-          require File.dirname(__FILE__)+'/lazy_dir'
+          require 'github-gem-builder/security'
+          require 'github-gem-builder/lazy_dir'
           Dir.chdir(tmpdir) do
             thread = Thread.new do
               eval <<-EOE
