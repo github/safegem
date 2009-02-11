@@ -38,27 +38,43 @@ Gem::Builder.class_eval do
 end
 
 def process(repository, path)
-  return unless content = repository.git.tree('master', path).contents.first
-  data = content.data
-  
-  if data !~ %r{!ruby/object:Gem::Specification}
-    url  = URI.parse("http://gem_evaler:4567/")
-    res  = Net::HTTP.post_form(url, { 'repo' => repository.name_with_owner, 'data' => data })
-    data = res.body
-    if data.include?('ERROR: ')
-      data = data.sub('ERROR: ', '')
-      Message.create \
-        :to      => repository.owner,
-        :from    => (User / :github),
-        :subject => "[#{repository}] Gem Build Failure",
-        :body    => "The gem build failed with the following error:\n\n#{data}"
-      raise GemBuildError.new(data)
-    end
-  end
+  begin
+    raise "Could not open repo" unless content = repository.git.tree('master', path).contents.first
+    data = content.data
 
-  spec = Gem::Specification.from_yaml(data)
-  name = spec.name.gsub(' ', '-')
-  spec.name = "#{repository.owner}-#{name}"
-  Gem::Builder.new(spec).build(repository)
+    if data !~ %r{!ruby/object:Gem::Specification}
+      url  = URI.parse("http://gem_evaler:4567/")
+      res  = Net::HTTP.post_form(url, { 'repo' => repository.name_with_owner, 'data' => data })
+      data = res.body
+      if data.include?('ERROR: ')
+        data = data.sub('ERROR: ', '')
+        raise GemBuildError.new(data)
+      end
+    end
+
+    spec = Gem::Specification.from_yaml(data)
+    name = spec.name.gsub(' ', '-')
+    spec.name = "#{repository.owner}-#{name}"
+    Gem::Builder.new(spec).build(repository)
+    Message.create \
+      :to      => repository.owner,
+      :from    => (User / :github),
+      :subject => "[#{repository}] Gem Build Successful",
+      :body    => "Your gem has been built, it will be added to gems.github.com soon."
+  rescue GemBuildError => err
+    Message.create \
+      :to      => repository.owner,
+      :from    => (User / :github),
+      :subject => "[#{repository}] Gem Build Failure",
+      :body    => "The gem build failed with the following error:\n\n#{err.message}"
+    raise
+  rescue StandardError => err
+    Message.create \
+      :to      => "tekkub",
+      :from    => (User / :github),
+      :subject => "[#{repository.owner}/#{repository}] Gem Build Error",
+      :body    => "#{err.class} - #{err.message}\n\n<pre>\n#{err.backtrace.join("\n")}</pre>"
+    raise
+  end
 end
 
