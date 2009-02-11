@@ -1,6 +1,6 @@
 # I dont use test/unit for this because the security measures screw with it
 $:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
-require 'github-gem-builder/security'
+require 'safegem/security'
 
 def assert condition, message
   raise message  if ! condition

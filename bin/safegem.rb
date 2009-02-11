@@ -25,8 +25,8 @@ post '/' do
         begin
           r.close
 
-          require 'github-gem-builder/security'
-          require 'github-gem-builder/lazy_dir'
+          require 'safegem/security'
+          require 'safegem/lazy_dir'
           Dir.chdir(tmpdir) do
             thread = Thread.new do
               eval <<-EOE

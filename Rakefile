@@ -5,11 +5,11 @@ require 'rake/rdoctask'
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |s|
-    s.name = "github-gem-builder"
-    s.summary = %Q{GitHub's gem builder}
+    s.name = "safegem"
+    s.summary = %Q{GitHub's safe gem eval web service}
     s.email = "tom@mojombo.com"
-    s.homepage = "http://github.com/pjhyett/github-gem-builder"
-    s.description = "GitHub's gem builder"
+    s.homepage = "http://github.com/github/safegem"
+    s.description = "GitHub's safe gem eval web service"
     s.authors = ["PJ Hyett", "Tom Preston-Werner"]
   end
 rescue LoadError
@@ -18,7 +18,7 @@ end
 
 Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_dir = 'rdoc'
-  rdoc.title    = 'github-gem-builder'
+  rdoc.title    = 'safegem'
   rdoc.options << '--line-numbers' << '--inline-source'
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')

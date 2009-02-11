@@ -6,7 +6,7 @@ require 'fileutils'
 require 'open4'
 
 OUTPUT = !!ENV['SERVER_OUTPUT']
-puts "gem_eval server output disabled, set SERVER_OUTPUT=1 to enable" if ! OUTPUT
+puts "safegem server output disabled, set SERVER_OUTPUT=1 to enable" if ! OUTPUT
 
 def mv(a, b)
   here = File.dirname(__FILE__)
@@ -16,18 +16,18 @@ end
 # ensure git_mock is in place before running any of these tests
 mv('git', 'git_mock') rescue nil
 
-class GemEvalTest < Test::Unit::TestCase
+class SafeGemTest < Test::Unit::TestCase
   def setup
     here = File.dirname(__FILE__)
 
     # put the mock git in place
     mv('git_mock', 'git')
 
-    # construct the gem_eval command
-    cmd = "PATH=#{here}:$PATH ruby #{here}/../bin/gem_eval.rb"
+    # construct the safegem command
+    cmd = "PATH=#{here}:$PATH ruby #{here}/../bin/safegem.rb"
     cmd += " > /dev/null 2>&1" unless OUTPUT
 
-    # run gem_eval
+    # run safegem
     @pid, _, _, _ = Open4::popen4(cmd)
 
     # wait for server to start
@@ -225,10 +225,10 @@ test_files:
   end
 
   def test_tmpdir_is_destroyed
-    Dir.mkdir('tmp/gem_eval_test')
-    assert File.exist?('tmp/gem_eval_test')
+    Dir.mkdir('tmp/safegem_test')
+    assert File.exist?('tmp/safegem_test')
     req('')
-    assert ! File.exist?('tmp/gem_eval_test')
+    assert ! File.exist?('tmp/safegem_test')
   end
 
   def test_secure_parser_begin
@@ -257,7 +257,7 @@ test_files:
 
   def req(data)
     Net::HTTP.start 'localhost', 4567 do |h|
-      h.post('/', "data=#{CGI.escape data}&repo=gem_eval_test").body
+      h.post('/', "data=#{CGI.escape data}&repo=safegem_test").body
     end
   end
 end

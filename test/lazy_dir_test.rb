@@ -1,5 +1,5 @@
 $:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
-require 'github-gem-builder/lazy_dir'
+require 'safegem/lazy_dir'
 
 require 'test/unit'
 require 'fileutils'
