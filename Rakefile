@@ -6,11 +6,11 @@ begin
   require 'jeweler'
   Jeweler::Tasks.new do |s|
     s.name = "github-gem-builder"
-    s.summary = %Q{TODO}
+    s.summary = %Q{GitHub's gem builder}
     s.email = "tom@mojombo.com"
-    s.homepage = "http://github.com/mojombo/github-gem-builder"
-    s.description = "TODO"
-    s.authors = ["Tom Preston-Werner"]
+    s.homepage = "http://github.com/pjhyett/github-gem-builder"
+    s.description = "GitHub's gem builder"
+    s.authors = ["PJ Hyett", "Tom Preston-Werner"]
   end
 rescue LoadError
   puts "Jeweler not available. Install it with: sudo gem install technicalpickles-jeweler -s http://gems.github.com"
