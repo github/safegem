@@ -81,3 +81,5 @@ post '/' do
     `rm -rf #{tmpdir}`  if tmpdir
   end
 end
+
+Sinatra::Application.run!
