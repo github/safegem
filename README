@@ -5,8 +5,8 @@ Help make GitHub's gem build process more secure and robust!
 
 There are two components associated with this:
 
-* gem_builder.rb - Script that builds the gem
-* gem_eval.rb - Sandboxed Sinatra app that evals ruby gemspecs
+* lib/github-gem-builder/gem_builder.rb - Script that builds the gem
+* bin/gem_eval.rb - Sandboxed Sinatra app that evals ruby gemspecs
 
 
 gem_builder.rb works as follows:
