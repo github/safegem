@@ -18,7 +18,7 @@ post '/' do
     tmpdir = "tmp/#{repo}"
     spec = nil
 
-    Timeout::timeout(15) do
+    Timeout::timeout(30) do
       `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
 
       pid = fork do
