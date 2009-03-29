@@ -127,5 +127,7 @@ post '/' do
 end
 
 if $0 != __FILE__
+  set :run, false
+  disable :reload
   Sinatra::Application.run!
 end
