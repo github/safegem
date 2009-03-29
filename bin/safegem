@@ -125,3 +125,7 @@ post '/' do
     `rm -rf #{tmpdir}` if tmpdir
   end
 end
+
+if $0 != __FILE__
+  Sinatra::Application.run!
+end
