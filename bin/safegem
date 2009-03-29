@@ -69,17 +69,15 @@ post '/' do
       end
       w.close
 
-      Process.wait pid
+      Process.wait(pid)
       r.read
     end
   rescue Exception
-    Process.kill 9, pid
+    Process.kill(9, pid) if pid
     puts $!,$@
 
     "ERROR: #$!"
   ensure
-    `rm -rf #{tmpdir}`  if tmpdir
+    `rm -rf #{tmpdir}` if tmpdir
   end
 end
-
-Sinatra::Application.run!

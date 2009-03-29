@@ -5,12 +5,16 @@ require 'cgi'
 require 'fileutils'
 require 'open4'
 
-OUTPUT = !!ENV['SERVER_OUTPUT']
-puts "safegem server output disabled, set SERVER_OUTPUT=1 to enable" if ! OUTPUT
+OUTPUT = !!ENV['OUTPUT']
+puts "safegem output disabled, set OUTPUT=1 to enable" if ! OUTPUT
 
 def mv(a, b)
   here = File.dirname(__FILE__)
   FileUtils.mv(File.join(here, a), File.join(here, b))
+end
+
+def log(x)
+  puts x if OUTPUT
 end
 
 # ensure git_mock is in place before running any of these tests
@@ -24,8 +28,10 @@ class SafeGemTest < Test::Unit::TestCase
     mv('git_mock', 'git')
 
     # construct the safegem command
-    cmd = "PATH=#{here}:$PATH ruby #{here}/../bin/safegem.rb"
+    cmd = "PATH=#{here}:$PATH ruby #{here}/../bin/safegem"
     cmd += " > /dev/null 2>&1" unless OUTPUT
+    
+    log(cmd)
 
     # run safegem
     @pid, _, _, _ = Open4::popen4(cmd)
@@ -35,7 +41,9 @@ class SafeGemTest < Test::Unit::TestCase
       begin
         TCPSocket.open('localhost', 4567) {}
         server_started = true
+        log 'good'
       rescue Errno::ECONNREFUSED
+        log 'err'
         server_started = false
         sleep 0.1
         retry
@@ -44,9 +52,11 @@ class SafeGemTest < Test::Unit::TestCase
   end
 
   def teardown
+    log "Killing #{@pid}"
     Process.kill("SIGHUP", @pid)
     mv('git', 'git_mock')
     sleep(0.5) # to let sinatra unbind the socket
+    log "Teardown complete"
   end
 
   def test_access_to_untainted_locals
@@ -55,24 +65,24 @@ class SafeGemTest < Test::Unit::TestCase
     end
   end
 
-  def test_timeout
-    puts "\ntesting 15s timeout"
-    begin
-      timeout(17) do
-        s = req <<-EOS
-          def forever
-            loop{}
-          ensure
-            forever
-          end
-          forever
-        EOS
-        assert_equal "ERROR: execution expired", s
-      end
-    rescue Timeout::Error
-      fail "timed out! no good!"
-    end
-  end
+  # def test_timeout
+  #   puts "\ntesting 30s timeout"
+  #   begin
+  #     timeout(32) do
+  #       s = req <<-EOS
+  #         def forever
+  #           loop{}
+  #         ensure
+  #           forever
+  #         end
+  #         forever
+  #       EOS
+  #       assert_equal "ERROR: execution expired", s
+  #     end
+  #   rescue Timeout::Error
+  #     fail "timed out! no good!"
+  #   end
+  # end
 
   def test_legit_gemspec_works
     gemspec = <<-EOS
