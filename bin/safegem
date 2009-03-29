@@ -13,6 +13,12 @@ require 'json'
 require 'base64'
 require 'zlib'
 
+def time
+  t1 = Time.now
+  yield
+  Time.now - t1
+end
+
 post '/' do
   puts "-> #{params.merge('data' => params[:data].size).inspect}"
   r, w = IO.pipe
@@ -27,9 +33,10 @@ post '/' do
     spec     = nil
 
     Timeout::timeout(300) do
-      `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
-      p "Cloned #{repo}"
+      t = time { `git clone --depth 1 git://github.com/#{repo} #{tmpdir}` }
+      puts "-- cloned #{repo} in #{t}s"
 
+      t1 = Time.now
       pid = fork do
         begin
           r.close
@@ -84,11 +91,15 @@ post '/' do
       Process.wait(pid)
       yaml = r.read
       r.close
+      puts "-- converted to yaml in #{Time.now - t1}s"
 
-      payload = {'token' => token, 'yaml' => yaml}
-      puts "<- [#{callback}] #{payload.merge('yaml' => payload['yaml'].size).inspect}"
-      res  = Net::HTTP.post_form(URI.parse(callback), payload)
-      puts "-> #{res.body.inspect}"
+      res = nil
+      t = time do
+        payload = {'token' => token, 'yaml' => yaml}
+        puts "<- [#{callback}] #{payload.merge('yaml' => payload['yaml'].size).inspect}"
+        res = Net::HTTP.post_form(URI.parse(callback), payload)
+      end
+      puts "-> #{res.body.inspect} in #{t}s"
 
       # uri = URI.parse(callback)
       # http = Net::HTTP.new(uri.host)
