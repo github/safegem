@@ -11,6 +11,8 @@ begin
     s.homepage = "http://github.com/github/safegem"
     s.description = "GitHub's safe gem eval web service"
     s.authors = ["PJ Hyett", "Tom Preston-Werner"]
+    s.add_dependency('json', '>= 1.1.3')
+    s.add_dependency('json', '>= 0.9.9.1')
   end
 rescue LoadError
   puts "Jeweler not available. Install it with: sudo gem install technicalpickles-jeweler -s http://gems.github.com"

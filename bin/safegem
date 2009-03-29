@@ -7,19 +7,28 @@ require 'rubygems/specification'
 require 'sinatra'
 require 'timeout'
 require 'yaml'
+require 'net/http'
+require 'safegem/exception'
+require 'json'
+require 'base64'
+require 'zlib'
 
 post '/' do
+  p params
   r, w = IO.pipe
 
   pid = nil
   begin
-    repo   = params[:repo]
-    data   = params[:data]
-    tmpdir = "tmp/#{repo}"
-    spec = nil
+    repo     = params[:repo]
+    data     = params[:data]
+    callback = params[:callback]
+    token    = params[:token]
+    tmpdir   = "tmp/#{repo}"
+    spec     = nil
 
-    Timeout::timeout(30) do
+    Timeout::timeout(300) do
       `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
+      p "Cloned #{repo}"
 
       pid = fork do
         begin
@@ -60,23 +69,41 @@ post '/' do
             spec.validate
           end
 
-          w.write YAML.dump(spec)
+          payload = Base64.encode64(Zlib::Deflate.deflate(YAML.dump(spec)))
+          p payload.size
+          w.write payload
+          w.close
         rescue Object
-          puts $!,$@
+          puts $!, $@
 
           w.write "ERROR: #$!"
+          w.close
         end
       end
+
       w.close
-
+      p "Waiting for conversion"
       Process.wait(pid)
-      r.read
-    end
-  rescue Exception
-    Process.kill(9, pid) if pid
-    puts $!,$@
+      yaml = r.read
+      r.close
 
-    "ERROR: #$!"
+      p "Request build from GitHub"
+      payload = {'token' => token, 'yaml' => yaml}
+      res  = Net::HTTP.post_form(URI.parse(callback), payload)
+      data = res.body
+      p data
+
+      p "Success"
+      packet = {'result' => "Successfully converted #{repo} gemspec to YAML.", 'error' => nil}
+      p packet
+      packet.to_json
+    end
+  rescue Exception => e
+    Process.kill(9, pid) rescue nil
+    packet = {'error' => e.to_hash}
+    p packet
+
+    packet.to_json
   ensure
     `rm -rf #{tmpdir}` if tmpdir
   end
