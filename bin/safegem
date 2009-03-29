@@ -14,7 +14,7 @@ require 'base64'
 require 'zlib'
 
 post '/' do
-  p params
+  puts "-> #{params.merge('data' => params[:data].size).inspect}"
   r, w = IO.pipe
 
   pid = nil
@@ -70,7 +70,6 @@ post '/' do
           end
 
           payload = Base64.encode64(Zlib::Deflate.deflate(YAML.dump(spec)))
-          p payload.size
           w.write payload
           w.close
         rescue Object
@@ -82,27 +81,34 @@ post '/' do
       end
 
       w.close
-      p "Waiting for conversion"
       Process.wait(pid)
       yaml = r.read
       r.close
 
-      p "Request build from GitHub"
       payload = {'token' => token, 'yaml' => yaml}
+      puts "<- [#{callback}] #{payload.merge('yaml' => payload['yaml'].size).inspect}"
       res  = Net::HTTP.post_form(URI.parse(callback), payload)
-      data = res.body
-      p data
+      puts "-> #{res.body.inspect}"
 
-      p "Success"
+      # uri = URI.parse(callback)
+      # http = Net::HTTP.new(uri.host)
+      # http.set_debug_output $stdout
+      # http.start do |http|
+      #   req = Net::HTTP::Post.new(uri.path)
+      #   payload = {'token' => token, 'yaml' => yaml}
+      #   req.set_form_data(payload)
+      #   res = http.request(req)
+      #   p res.value
+      # end
+
       packet = {'result' => "Successfully converted #{repo} gemspec to YAML.", 'error' => nil}
-      p packet
+      puts "<- #{packet.inspect}"
       packet.to_json
     end
   rescue Exception => e
     Process.kill(9, pid) rescue nil
     packet = {'error' => e.to_hash}
-    p packet
-
+    puts "<- #{packet.inspect}"
     packet.to_json
   ensure
     `rm -rf #{tmpdir}` if tmpdir
