@@ -8,9 +8,12 @@ SafeGem is a Sinatra app that safely converts Ruby gemspecs into YAML gemspecs.
 It works as follows:
 
 1) Receives a request with the repo location and the ruby gemspec
-2) Makes a shallow clone of the repo and chdir's to that repo
-3) Evals the spec in a separate thread with a higher $SAFE level
-4) Converts spec to YAML
+2) Returns immediately and schedules the following via EM.defer:
+
+1) Makes a shallow clone of the repo and chdir's to that repo
+2) Evals the spec in a separate thread with a higher $SAFE level
+3) Converts spec to YAML
+4) Posts the YAML to the specified callback
 
 Goals
 -----
