@@ -4,7 +4,7 @@ $:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
 
 require 'rubygems'
 require 'rubygems/specification'
-require 'sinatra/base'
+require 'sinatra'
 require 'timeout'
 require 'yaml'
 require 'net/http'
@@ -13,127 +13,129 @@ require 'json'
 require 'base64'
 require 'zlib'
 
-class SafeGem < Sinatra::Default
-  def time
-    t1 = Time.now
-    yield
-    Time.now - t1
-  end
-
-  post '/' do
-    puts "-> #{params.merge('data' => params[:data].size).inspect}"
-    op = proc do
-      r, w = IO.pipe
-
-      pid = nil
-      begin
-        repo     = params[:repo]
-        data     = params[:data]
-        callback = params[:callback]
-        token    = params[:token]
-        tmpdir   = "tmp/#{repo}"
-        spec     = nil
-
-        Timeout::timeout(300) do
-          t = time { `git clone --depth 1 git://github.com/#{repo} #{tmpdir}` }
-          puts "-- cloned #{repo} in #{t}s"
-
-          t1 = Time.now
-          pid = fork do
-            begin
-              r.close
-
-              require 'safegem/security'
-              require 'safegem/lazy_dir'
-              Dir.chdir(tmpdir) do
-                thread = Thread.new do
-                  eval <<-EOE
-                    BEGIN { # First in first out. Get this one exec'ed before the code below.
-                      Object.class_eval do
-                        remove_const :OrigDir rescue nil
-                        OrigDir = Dir
-                        remove_const :Dir
-                        Dir = LazyDir
-                      end
-                      $SAFE = 3
-                      OrigDir.set_safe_level
-                    }
-                    BEGIN { # This forces Ruby to ignore nested END {} blocks
-                      begin
-                        params = tmpdir = data = spec = repo = nil
-                        # Pass data out using TLS
-                        Thread.current[:spec] = (#{data})
-                      ensure
-                        Object.class_eval do
-                          remove_const :Dir
-                          Dir = OrigDir
-                        end
-                      end
-                    }
-                  EOE
-                end.join
-                Dir.set_safe_level
-                spec = thread[:spec]
-                spec.rubygems_version = Gem::RubyGemsVersion # make sure validation passes
-                spec.validate
-              end
-
-              payload = Base64.encode64(Zlib::Deflate.deflate(YAML.dump(spec)))
-              w.write payload
-              w.close
-            rescue Object => e
-              w.write "ERROR: #{e.message}"
-              w.close
-            end
-          end
-
-          w.close
-          Process.wait(pid)
-          yaml = r.read
-          r.close
-          
-          if yaml =~ /^ERROR: (.*)$/
-            puts "-- conversion error in #{Time.now - t1}s"
-            
-            res = nil
-            t = time do
-              payload = {'token' => token, 'message' => $1}
-              puts "<- [#{callback}] #{payload.inspect}"
-              res = Net::HTTP.post_form(URI.parse("#{callback}_error"), payload)
-            end
-            puts "-> #{res.body.inspect} in #{t}s"
-
-            packet = {'result' => "Failed to convert #{repo} gemspec to YAML.", 'error' => nil}
-            puts "<- #{packet.inspect}"
-            packet.to_json
-          else
-            puts "-- converted to yaml in #{Time.now - t1}s"
-
-            res = nil
-            t = time do
-              payload = {'token' => token, 'yaml' => yaml}
-              puts "<- [#{callback}] #{payload.merge('yaml' => payload['yaml'].size).inspect}"
-              res = Net::HTTP.post_form(URI.parse(callback), payload)
-            end
-            puts "-> #{res.body.inspect} in #{t}s"
-
-            packet = {'result' => "Successfully converted #{repo} gemspec to YAML.", 'error' => nil}
-            puts "<- #{packet.inspect}"
-            packet.to_json
-          end
-        end
-      rescue Exception => e
-        Process.kill(9, pid) rescue nil
-        packet = {'error' => e.to_hash}
-        puts "<- #{packet.inspect}"
-        packet.to_json
-      ensure
-        `rm -rf #{tmpdir}` if tmpdir
-      end
-    end
-    EM.defer(op, proc { })
-    {'result' => 'Success', 'error' => nil}.to_json
-  end
+def time
+  t1 = Time.now
+  yield
+  Time.now - t1
 end
 
-SafeGem.run!
+post '/' do
+  puts "-> #{params.merge('data' => params[:data].size).inspect}"
+  op = proc do
+    r, w = IO.pipe
+
+    pid = nil
+    begin
+      repo     = params[:repo]
+      data     = params[:data]
+      callback = params[:callback]
+      token    = params[:token]
+      tmpdir   = "tmp/#{repo}"
+      spec     = nil
+
+      Timeout::timeout(300) do
+        t = time { `git clone --depth 1 git://github.com/#{repo} #{tmpdir}` }
+        puts "-- cloned #{repo} in #{t}s"
+
+        t1 = Time.now
+        pid = fork do
+          begin
+            r.close
+
+            require 'safegem/security'
+            require 'safegem/lazy_dir'
+            Dir.chdir(tmpdir) do
+              thread = Thread.new do
+                eval <<-EOE
+                  BEGIN { # First in first out. Get this one exec'ed before the code below.
+                    Object.class_eval do
+                      remove_const :OrigDir rescue nil
+                      OrigDir = Dir
+                      remove_const :Dir
+                      Dir = LazyDir
+                    end
+                    $SAFE = 3
+                    OrigDir.set_safe_level
+                  }
+                  BEGIN { # This forces Ruby to ignore nested END {} blocks
+                    begin
+                      params = tmpdir = data = spec = repo = nil
+                      # Pass data out using TLS
+                      Thread.current[:spec] = (#{data})
+                    ensure
+                      Object.class_eval do
+                        remove_const :Dir
+                        Dir = OrigDir
+                      end
+                    end
+                  }
+                EOE
+              end.join
+              Dir.set_safe_level
+              spec = thread[:spec]
+              spec.rubygems_version = Gem::RubyGemsVersion # make sure validation passes
+              spec.validate
+            end
+
+            payload = Base64.encode64(Zlib::Deflate.deflate(YAML.dump(spec)))
+            w.write payload
+            w.close
+          rescue Object => e
+            w.write "ERROR: #{e.message}"
+            w.close
+          end
+        end
+
+        w.close
+        Process.wait(pid)
+        yaml = r.read
+        r.close
+        
+        if yaml =~ /^ERROR: (.*)$/
+          puts "-- conversion error in #{Time.now - t1}s"
+          
+          res = nil
+          t = time do
+            payload = {'token' => token, 'message' => $1}
+            puts "<- [#{callback}] #{payload.inspect}"
+            res = Net::HTTP.post_form(URI.parse("#{callback}_error"), payload)
+          end
+          puts "-> #{res.body.inspect} in #{t}s"
+
+          packet = {'result' => "Failed to convert #{repo} gemspec to YAML.", 'error' => nil}
+          puts "<- #{packet.inspect}"
+          packet.to_json
+        else
+          puts "-- converted to yaml in #{Time.now - t1}s"
+
+          res = nil
+          t = time do
+            payload = {'token' => token, 'yaml' => yaml}
+            puts "<- [#{callback}] #{payload.merge('yaml' => payload['yaml'].size).inspect}"
+            res = Net::HTTP.post_form(URI.parse(callback), payload)
+          end
+          puts "-> #{res.body.inspect} in #{t}s"
+
+          packet = {'result' => "Successfully converted #{repo} gemspec to YAML.", 'error' => nil}
+          puts "<- #{packet.inspect}"
+          packet.to_json
+        end
+      end
+    rescue Exception => e
+      Process.kill(9, pid) rescue nil
+      packet = {'error' => e.to_hash}
+      puts "<- #{packet.inspect}"
+      packet.to_json
+    ensure
+      `rm -rf #{tmpdir}` if tmpdir
+    end
+  end
+  EM.defer(op, proc { })
+  {'result' => 'Success', 'error' => nil}.to_json
+end
+
+if $0 != __FILE__
+  set :run, false
+  disable :reload
+  Sinatra::Application.run!
+end
