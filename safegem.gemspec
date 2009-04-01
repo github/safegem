@@ -2,16 +2,17 @@
 
 Gem::Specification.new do |s|
   s.name = %q{safegem}
-  s.version = "0.2.4"
+  s.version = "0.2.5"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["PJ Hyett", "Tom Preston-Werner"]
-  s.date = %q{2009-03-29}
+  s.date = %q{2009-04-01}
   s.default_executable = %q{safegem}
   s.description = %q{GitHub's safe gem eval web service}
   s.email = %q{tom@mojombo.com}
   s.executables = ["safegem"]
-  s.files = ["VERSION.yml", "bin/safegem", "lib/safegem", "lib/safegem/exception.rb", "lib/safegem/lazy_dir.rb", "lib/safegem/security.rb", "lib/safegem.rb", "test/git_mock", "test/lazy_dir_test.rb", "test/safegem_test.rb", "test/security_test.rb"]
+  s.extra_rdoc_files = ["README"]
+  s.files = ["VERSION.yml", "bin/safegem", "lib/safegem", "lib/safegem/exception.rb", "lib/safegem/lazy_dir.rb", "lib/safegem/security.rb", "lib/safegem.rb", "test/git_mock", "test/lazy_dir_test.rb", "test/safegem_test.rb", "test/security_test.rb", "README"]
   s.has_rdoc = true
   s.homepage = %q{http://github.com/github/safegem}
   s.rdoc_options = ["--inline-source", "--charset=UTF-8"]
