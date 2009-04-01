@@ -12,7 +12,7 @@ begin
     s.description = "GitHub's safe gem eval web service"
     s.authors = ["PJ Hyett", "Tom Preston-Werner"]
     s.add_dependency('json', '>= 1.1.3')
-    s.add_dependency('sinatra', '>= 0.9.9.1')
+    s.add_dependency('sinatra', '>= 0.9.1.1')
     s.add_dependency('thin', '>= 1.0.0')
   end
 rescue LoadError
