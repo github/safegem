@@ -30,7 +30,7 @@ post '/' do
       data     = params[:data]
       callback = params[:callback]
       token    = params[:token]
-      tmpdir   = "tmp/#{repo}"
+      tmpdir   = "tmp/#{repo}-#{Time.now.strftime('%Y-%m-%d-%H-%M-%S')}"
       spec     = nil
 
       Timeout::timeout(300) do
@@ -136,7 +136,7 @@ post '/' do
       puts "<- #{packet.inspect}"
       packet.to_json
     ensure
-      `rm -rf #{tmpdir}` if tmpdir
+      # `rm -rf #{tmpdir}` if tmpdir
     end
   end
   EM.defer(op, proc { })
