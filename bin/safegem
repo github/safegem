@@ -34,14 +34,16 @@ post '/' do
       spec     = nil
 
       Timeout::timeout(300) do
-        t = time do
-          `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
-          Dir.chdir(tmpdir) do
-            `git submodule init`
-            `git submodule update`
-          end
-        end
+        t = time { `git clone --depth 1 git://github.com/#{repo} #{tmpdir}` }
         puts "-- cloned #{repo} in #{t}s"
+
+        raise("Clone failed for #{repo}, try again in a few minutes.") unless File.exist?(tmpdir)
+
+        Dir.chdir(tmpdir) do
+          puts `git submodule init`.gsub(/^/, '-- ')
+          t = time { `git submodule update` }
+          puts "-- submodule update in #{t}s"
+        end
 
         t1 = Time.now
         pid = fork do
@@ -83,6 +85,7 @@ post '/' do
               spec.validate
             end
 
+            puts "-- version #{spec.version}"
             payload = Base64.encode64(Zlib::Deflate.deflate(YAML.dump(spec)))
             w.write payload
             w.close
