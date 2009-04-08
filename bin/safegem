@@ -34,7 +34,13 @@ post '/' do
       spec     = nil
 
       Timeout::timeout(300) do
-        t = time { `git clone --depth 1 git://github.com/#{repo} #{tmpdir}` }
+        t = time do
+          `git clone --depth 1 git://github.com/#{repo} #{tmpdir}`
+          Dir.chdir(tmpdir) do
+            `git submodule init`
+            `git submodule update`
+          end
+        end
         puts "-- cloned #{repo} in #{t}s"
 
         t1 = Time.now
